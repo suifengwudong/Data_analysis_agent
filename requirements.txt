@@ -1,4 +1,4 @@
-openai
-gradio
-python-dotenv
-pandas
+openai==2.7.1
+gradio==5.49.1
+pandas==2.3.3
+python-dotenv==1.2.1
