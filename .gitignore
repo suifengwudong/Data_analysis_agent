@@ -2,3 +2,4 @@
 .env
 temp_files/*
 .lintr
+__pycache__/
