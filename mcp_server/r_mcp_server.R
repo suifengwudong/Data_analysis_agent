@@ -37,12 +37,15 @@ r_linear_model <- ellmer::tool(
 
 r_visualize <- ellmer::tool(
   tool_visualize, name = "r_visualize",
-  description = "Produce scatter/histogram/boxplot and save PNG.",
+  description = "Produce scatter/histogram/boxplot and save PNG. Can filter data and apply axis transformations.",
   arguments = list(
     path   = ellmer::type_string("CSV path"),
     plot_type   = ellmer::type_string("scatter|histogram|boxplot"),
     x_var       = ellmer::type_string("x var"),
     y_var       = ellmer::type_string("y var (for scatter)", required = FALSE),
+    filter_expr = ellmer::type_string("A string of R expression to filter the data, e.g., 'col_a > 10 & col_b == \"some_value\"'", required = FALSE),
+    x_trans     = ellmer::type_string("Transformation for x-axis (e.g., 'log10', 'sqrt')", required = FALSE),
+    y_trans     = ellmer::type_string("Transformation for y-axis (e.g., 'log10', 'sqrt')", required = FALSE),
     output_path = ellmer::type_string("PNG path", required = FALSE)
   )
 )
