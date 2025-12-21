@@ -1,4 +1,7 @@
-suppressPackageStartupMessages({library(readr); library(dplyr)})
+suppressPackageStartupMessages({
+  library(readr)
+  library(dplyr)
+})
 
 #' Performs basic exploratory data analysis on a CSV file.
 #'
