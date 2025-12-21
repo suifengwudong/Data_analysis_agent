@@ -1,5 +1,16 @@
 suppressPackageStartupMessages({library(readr); library(ggplot2); library(dplyr)})
 
+#' Generates a plot (scatter, histogram, or boxplot) from a CSV file.
+#'
+#' @param path Path to the input CSV file.
+#' @param plot_type The type of plot to generate: "scatter", "histogram", or "boxplot".
+#' @param x_var The column name for the x-axis.
+#' @param y_var The column name for the y-axis (required for scatter plots).
+#' @param filter_expr An optional R expression string to filter the data before plotting.
+#' @param x_trans An optional transformation for the x-axis (e.g., 'log10').
+#' @param y_trans An optional transformation for the y-axis (e.g., 'log10').
+#' @param output_path The path to save the output plot PNG file.
+#' @return A list containing the path to the saved plot.
 tool_visualize <- function(path, plot_type, x_var, y_var = NULL, filter_expr = NULL, x_trans = NULL, y_trans = NULL, output_path = "plot.png") {
   df <- readr::read_csv(path, show_col_types = FALSE)
 
