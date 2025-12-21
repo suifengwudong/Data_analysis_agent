@@ -14,6 +14,7 @@ source(file.path(tool_dir, "modeling_tools.R"))
 source(file.path(tool_dir, "viz_tools.R"))
 source(file.path(tool_dir, "clustering_tools.R"))
 source(file.path(tool_dir, "stats_tools.R"))
+source(file.path(tool_dir, "cleaning_tools.R"))
 
 # 把 R 函数包装为 ellmer::tool （参数类型明确，方便 LLM 遵循）
 r_eda <- ellmer::tool(
@@ -22,6 +23,20 @@ r_eda <- ellmer::tool(
   arguments = list(
     path = ellmer::type_string("Path to CSV"),
     variables = ellmer::type_array(ellmer::type_string(), "Optional column names", required = FALSE)
+  )
+)
+
+r_clean_data <- ellmer::tool(
+  tool_clean_data, name = "r_clean_data",
+  description = "Cleans a CSV file by removing rows with NAs or zeros in specified columns, and filtering by a numeric range.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    output_path = ellmer::type_string("Path to save the cleaned CSV file."),
+    na_cols = ellmer::type_array(ellmer::type_string(), "Optional: Columns where rows with NA should be removed.", required = FALSE),
+    zero_cols = ellmer::type_array(ellmer::type_string(), "Optional: Columns where rows with a value of 0 should be removed.", required = FALSE),
+    filter_col = ellmer::type_string("Optional: Column name for numeric range filtering.", required = FALSE),
+    min_val = ellmer::type_number("Optional: Minimum value for the range filter.", required = FALSE),
+    max_val = ellmer::type_number("Optional: Maximum value for the range filter.", required = FALSE)
   )
 )
 
@@ -73,6 +88,6 @@ r_hypothesis_test <- ellmer::tool(
 )
 
 mcptools::mcp_server(tools = list(
-  r_eda, r_linear_model, r_visualize, r_clustering, r_hypothesis_test
+  r_eda, r_linear_model, r_visualize, r_clustering, r_hypothesis_test, r_clean_data
 ))
 # install.packages(c('mcptools','ellmer','readr','dplyr','ggplot2','broom','jsonlite'))

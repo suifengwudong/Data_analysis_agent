@@ -1,5 +1,10 @@
 suppressPackageStartupMessages({library(readr); library(dplyr)})
 
+#' Performs basic exploratory data analysis on a CSV file.
+#'
+#' @param path Path to the input CSV file.
+#' @param variables Optional vector of column names to analyze. If NULL, all columns are included.
+#' @return A list containing data shape, column names, NA counts, and a summary of numeric columns.
 tool_eda <- function(path, variables = NULL) {
   stopifnot(file.exists(path))
   df <- readr::read_csv(path, show_col_types = FALSE)
