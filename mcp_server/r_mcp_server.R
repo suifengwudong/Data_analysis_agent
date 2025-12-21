@@ -1,20 +1,20 @@
 options(encoding = "UTF-8")
-# sink(file = stderr(), type = "output")  # 把 stdout 全部重定向到 stderr
 
 suppressPackageStartupMessages({
   library(mcptools)   # R 侧 MCP server
   library(ellmer)     # 定义工具schema
-  library(readr); library(dplyr); library(ggplot2); library(broom); library(jsonlite)
+  library(readr)
+  library(dplyr)
+  library(ggplot2)
+  library(broom)
+  library(jsonlite)
+  library(moments)
 })
 
-# 加载工具实现（在 mcp_server/r_tools/ 下）
+# Recursively find and source all R tool files
 tool_dir <- "mcp_server/r_tools"
-source(file.path(tool_dir, "eda_tools.R"))
-source(file.path(tool_dir, "modeling_tools.R"))
-source(file.path(tool_dir, "viz_tools.R"))
-source(file.path(tool_dir, "clustering_tools.R"))
-source(file.path(tool_dir, "stats_tools.R"))
-source(file.path(tool_dir, "cleaning_tools.R"))
+tool_files <- list.files(path = tool_dir, pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+invisible(lapply(tool_files, source))
 
 # 把 R 函数包装为 ellmer::tool （参数类型明确，方便 LLM 遵循）
 r_eda <- ellmer::tool(
@@ -23,6 +23,20 @@ r_eda <- ellmer::tool(
   arguments = list(
     path = ellmer::type_string("Path to CSV"),
     variables = ellmer::type_array(ellmer::type_string(), "Optional column names", required = FALSE)
+  )
+)
+
+r_plot_map <- ellmer::tool(
+  tool_plot_map, name = "r_plot_map",
+  description = "Plots geographic points from a CSV file onto a world map.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    lon_var = ellmer::type_string("The name of the longitude column."),
+    lat_var = ellmer::type_string("The name of the latitude column."),
+    filter_expr = ellmer::type_string("Optional: An R expression to filter data before plotting.", required = FALSE),
+    color_var = ellmer::type_string("Optional: A column name to use for coloring the points.", required = FALSE),
+    color_scale = ellmer::type_string("Optional: Color scale for numeric color_var ('gradient', 'viridis', 'discrete').", required = FALSE),
+    output_path = ellmer::type_string("Optional: Path to save the output map PNG file.", required = FALSE)
   )
 )
 
@@ -52,42 +66,61 @@ r_linear_model <- ellmer::tool(
 
 r_visualize <- ellmer::tool(
   tool_visualize, name = "r_visualize",
-  description = "Produce scatter/histogram/boxplot and save PNG. Can filter data and apply axis transformations.",
+  description = "Produce scatter, histogram, boxplot, or kde plot. Can filter data and apply axis transformations.",
   arguments = list(
-    path   = ellmer::type_string("CSV path"),
-    plot_type   = ellmer::type_string("scatter|histogram|boxplot"),
-    x_var       = ellmer::type_string("x var"),
-    y_var       = ellmer::type_string("y var (for scatter)", required = FALSE),
-    filter_expr = ellmer::type_string("A string of R expression to filter the data, e.g., 'col_a > 10 & col_b == \"some_value\"'", required = FALSE),
-    x_trans     = ellmer::type_string("Transformation for x-axis (e.g., 'log10', 'sqrt')", required = FALSE),
-    y_trans     = ellmer::type_string("Transformation for y-axis (e.g., 'log10', 'sqrt')", required = FALSE),
+    path        = ellmer::type_string("CSV path"),
+    plot_type   = ellmer::type_string("scatter|histogram|boxplot|kde"),
+    x_var       = ellmer::type_string("X-axis variable. For boxplot, can be a grouping variable."),
+    y_var       = ellmer::type_string("Y-axis variable (for scatter and grouped boxplot).", required = FALSE),
+    color_var   = ellmer::type_string("Optional: A column name to use for coloring the plot elements.", required = FALSE),
+    color_scale = ellmer::type_string("Optional: Color scale for numeric color_var ('gradient', 'viridis', 'discrete').", required = FALSE),
+    filter_expr = ellmer::type_string("A string of R expression to filter the data, e.g., 'col_a > 10'", required = FALSE),
+    x_trans     = ellmer::type_string("Transformation for x-axis (e.g., 'log10', 'sqrt').", required = FALSE),
+    y_trans     = ellmer::type_string("Transformation for y-axis (e.g., 'log10', 'sqrt').", required = FALSE),
     output_path = ellmer::type_string("PNG path", required = FALSE)
   )
 )
 
 r_clustering <- ellmer::tool(
   tool_clustering, name = "r_clustering",
-  description = "K-means on selected numeric columns; write labeled CSV.",
+  description = "Performs K-means clustering on a mix of numeric and categorical variables. Categorical variables are automatically one-hot encoded. Saves the result with a new 'cluster' column to a new CSV and returns the file path.",
   arguments = list(
     path   = ellmer::type_string("CSV path"),
     n_clusters  = ellmer::type_integer("k (default 3)", required = FALSE),
-    variables   = ellmer::type_array(ellmer::type_string(), "Optional columns", required = FALSE),
-    out_path    = ellmer::type_string("Output CSV", required = FALSE)
+    variables   = ellmer::type_array(ellmer::type_string(), "Optional columns for clustering. If NULL, all numeric columns are used.", required = FALSE),
+    out_path    = ellmer::type_string("Output CSV path", required = FALSE)
   )
 )
 
 r_hypothesis_test <- ellmer::tool(
   tool_hypothesis_test, name = "r_hypothesis_test",
-  description = "t-test or correlation between two numeric columns.",
+  description = "Performs a hypothesis test (t-test, Mann-Whitney U, or correlation) between two numeric columns.",
   arguments = list(
     path = ellmer::type_string("CSV path"),
-    test_type = ellmer::type_string("t_test|correlation"),
-    var1      = ellmer::type_string("first variable"),
-    var2      = ellmer::type_string("second variable", required = FALSE)
+    test_type = ellmer::type_string("t_test|mann_whitney_u|correlation"),
+    var1      = ellmer::type_string("First variable"),
+    var2      = ellmer::type_string("Second variable")
+  )
+)
+
+r_normality_test <- ellmer::tool(
+  tool_normality_test, name = "r_normality_test",
+  description = "Performs a Shapiro-Wilk normality test on a single variable after optional filtering and transformation.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    var = ellmer::type_string("The name of the variable to test."),
+    filter_expr = ellmer::type_string("Optional: An R expression to filter data before testing.", required = FALSE),
+    transform = ellmer::type_string("Optional: Transformation to apply before testing (e.g., 'log10', 'sqrt').", required = FALSE)
   )
 )
 
 mcptools::mcp_server(tools = list(
-  r_eda, r_linear_model, r_visualize, r_clustering, r_hypothesis_test, r_clean_data
+  r_eda,
+  r_linear_model,
+  r_visualize,
+  r_clustering,
+  r_hypothesis_test,
+  r_clean_data,
+  r_plot_map,
+  r_normality_test
 ))
-# install.packages(c('mcptools','ellmer','readr','dplyr','ggplot2','broom','jsonlite'))
