@@ -8,6 +8,7 @@ import logging
 from typing import Dict, Any, Optional
 from openai import OpenAI
 import os
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ class DataAnalysisAgent:
         
         # 对话历史
         self.messages = []
+        
+        # 用于存储列名映射
+        self.column_map: Dict[str, str] = {}
         
         # 用于存储待处理的 tool_call（当需要用户输入时）
         self.pending_tool_call = None
@@ -143,6 +147,27 @@ class DataAnalysisAgent:
         tools.append(talk_tool_spec)
         return tools
     
+    def _update_formula_with_column_map(self, formula: str) -> str:
+        """使用列名映射更新公式字符串"""
+        if not self.column_map:
+            return formula
+        
+        logger.info(f"Updating formula '{formula}' with column map: {self.column_map}")
+        
+        # 为了避免错误替换（例如，用 'var_1' 替换 'var_10' 中的 'var_1'），
+        # 我们按键的长度降序排序
+        sorted_map = sorted(self.column_map.items(), key=lambda item: len(item[0]), reverse=True)
+        
+        for old_name, new_name in sorted_map:
+            # 使用正则表达式确保只替换完整的单词
+            # 这可以防止 'year' 被 'new_year' 中的 'year' 替换
+            # `\b` 是一个词边界
+            pattern = r'\b' + re.escape(old_name) + r'\b'
+            formula = re.sub(pattern, new_name, formula)
+            
+        logger.info(f"Updated formula: '{formula}'")
+        return formula
+
     def analyze(self, user_request: str) -> str:
         """
         执行数据分析任务
@@ -238,6 +263,12 @@ class DataAnalysisAgent:
                             })
                             self.pending_tool_call = None
                         else:
+                            # 如果有列名映射，更新公式参数
+                            if "formula_str" in function_args and self.column_map:
+                                function_args["formula_str"] = self._update_formula_with_column_map(
+                                    function_args["formula_str"]
+                                )
+
                             # 调用 R 工具
                             # 确保路径参数使用工作目录
                             if "path" in function_args:
@@ -283,13 +314,21 @@ class DataAnalysisAgent:
                             
                             result = self.r_client.call_tool(function_name, function_args)
                             
-                            logger.info(f"Tool result: {result[:200]}...")
+                            logger.info(f"Tool result: {str(result)[:200]}...")
+                            
+                            # 如果是 r_clean_data 并且返回了 column_map，则存储它
+                            if function_name == "r_clean_data" and isinstance(result, dict) and "column_map" in result:
+                                new_map = result.get("column_map")
+                                if new_map:
+                                    logger.info(f"Received new column map: {new_map}")
+                                    self.column_map.update(new_map)
+                                    logger.info(f"Updated agent's column map: {self.column_map}")
                             
                             # 添加工具结果
                             self.messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
-                                "content": result
+                                "content": json.dumps(result) # 确保结果是JSON字符串
                             })
                 
                 else:

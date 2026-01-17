@@ -42,10 +42,11 @@ r_plot_map <- ellmer::tool(
 
 r_clean_data <- ellmer::tool(
   tool_clean_data, name = "r_clean_data",
-  description = "Cleans a CSV file by removing rows with NAs or zeros in specified columns, and filtering by a numeric range.",
+  description = "Cleans a CSV file by standardizing column names, removing rows with NAs or zeros, and filtering by a numeric range.",
   arguments = list(
     path = ellmer::type_string("Path to the input CSV file."),
     output_path = ellmer::type_string("Path to save the cleaned CSV file."),
+    clean_colnames = ellmer::type_boolean("If TRUE (default), standardizes column names to be R-friendly.", required = FALSE),
     na_cols = ellmer::type_array(ellmer::type_string(), "Optional: Columns where rows with NA should be removed.", required = FALSE),
     zero_cols = ellmer::type_array(ellmer::type_string(), "Optional: Columns where rows with a value of 0 should be removed.", required = FALSE),
     filter_col = ellmer::type_string("Optional: Column name for numeric range filtering.", required = FALSE),
@@ -56,25 +57,25 @@ r_clean_data <- ellmer::tool(
 
 r_glm <- ellmer::tool(
   tool_glm, name = "r_glm",
-  description = "Fits a Generalized Linear Model (e.g., linear or logistic regression) and provides diagnostic plots.",
+  description = "Fits a Generalized Linear Model (e.g., linear or logistic regression), saves the model summary to a text file, and provides diagnostic plots.",
   arguments = list(
     path = ellmer::type_string("Path to the input CSV file."),
     formula_str = ellmer::type_string('R formula, e.g., "y ~ x1 + x2".'),
     family = ellmer::type_string('Model family: "gaussian" (linear), "binomial" (logistic), etc.', required = FALSE),
-    out_dir = ellmer::type_string("Directory to save diagnostic plots.", required = FALSE)
+    out_dir = ellmer::type_string("Directory to save summary and plots.", required = FALSE)
   )
 )
 
 r_regularized_regression <- ellmer::tool(
   tool_regularized_regression, name = "r_regularized_regression",
-  description = "Performs regularized regression (Lasso, Ridge, Elastic Net) with cross-validation to find the best model.",
+  description = "Performs regularized regression (Lasso, Ridge, Elastic Net), saves coefficients to a CSV, and returns paths to the plot and CSV.",
   arguments = list(
     path = ellmer::type_string("Path to the input CSV file."),
     formula_str = ellmer::type_string('R formula, e.g., "y ~ x1 + x2".'),
     model_type = ellmer::type_string('Type of regularization: "lasso", "ridge", or "elastic_net".', required = FALSE),
     alpha = ellmer::type_number("Elastic Net mixing parameter (0=ridge, 1=lasso). Used only if model_type is elastic_net.", required = FALSE),
     family = ellmer::type_string('Model family: "gaussian" (linear) or "binomial" (logistic).', required = FALSE),
-    out_path = ellmer::type_string("Path to save the cross-validation plot.", required = FALSE)
+    out_path = ellmer::type_string("Path to save the cross-validation plot and coefficients CSV.", required = FALSE)
   )
 )
 
@@ -128,6 +129,16 @@ r_normality_test <- ellmer::tool(
   )
 )
 
+r_anova <- ellmer::tool(
+  tool_anova, name = "r_anova",
+  description = "Performs ANOVA (single or multi-factor) and saves the summary and diagnostic plots.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    formula_str = ellmer::type_string('R formula for ANOVA, e.g., "dependent_var ~ factor1 * factor2".'),
+    out_dir = ellmer::type_string("Directory to save the summary and plots.", required = FALSE)
+  )
+)
+
 mcptools::mcp_server(tools = list(
   r_eda,
   r_glm,
@@ -137,5 +148,6 @@ mcptools::mcp_server(tools = list(
   r_hypothesis_test,
   r_clean_data,
   r_plot_map,
-  r_normality_test
+  r_normality_test,
+  r_anova
 ))
