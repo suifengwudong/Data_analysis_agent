@@ -43,7 +43,7 @@ tool_normality_test <- function(path,
   if (length(x) < 3) {
     stop("Not enough data points to perform the normality test after cleaning.")
   }
-  
+
   # Perform the Shapiro-Wilk test
   res <- stats::shapiro.test(x)
 

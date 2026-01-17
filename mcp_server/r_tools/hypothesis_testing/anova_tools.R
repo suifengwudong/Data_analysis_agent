@@ -1,9 +1,6 @@
 suppressPackageStartupMessages({
   library(readr)
-  library(dplyr)
   library(broom)
-  library(ggplot2)
-  library(glmnet)
 })
 
 # Helper function to align formula variables with actual column names
@@ -75,15 +72,13 @@ preg_quote <- function(str) {
   gsub("([.^$*+?()[{\\|])", "\\\\\\1", str)
 }
 
-#' Fits a Generalized Linear Model (GLM) and generates diagnostic plots.
+#' Performs ANOVA and saves the summary and diagnostic plots.
 #'
 #' @param path Path to the input CSV file.
-#' @param formula_str An R formula string, e.g., "y ~ x1 + x2".
-#' @param family The error distribution and link function to be used in the model.
-#'   Examples: "gaussian" for Linear Regression, "binomial" for Logistic Regression.
-#' @param out_dir Path to the directory to save diagnostic plots.
-#' @return A list containing the tidy model data, paths to diagnostic plots, and the model summary.
-tool_glm <- function(path, formula_str, family = "gaussian", out_dir = "glm_diagnostics") {
+#' @param formula_str An R formula string for the ANOVA model, e.g., "dependent_var ~ factor1 * factor2".
+#' @param out_dir Path to the directory to save the summary and plots.
+#' @return A list containing the tidy ANOVA table, the path to the summary file, and paths to diagnostic plots.
+tool_anova <- function(path, formula_str, out_dir = "anova_diagnostics") {
   df <- readr::read_csv(path, show_col_types = FALSE)
 
   # Align formula variables with dataframe column names
@@ -94,115 +89,36 @@ tool_glm <- function(path, formula_str, family = "gaussian", out_dir = "glm_diag
     dir.create(out_dir, recursive = TRUE)
   }
 
-  # Fit the model
-  model <- glm(as.formula(formula_str), data = df, family = family)
-  
-  # --- Save Model Summary ---
-  summary_path <- file.path(out_dir, "model_summary.txt")
-  sink(summary_path)
-  print(summary(model))
-  sink()
+  # Fit the ANOVA model
+  aov_model <- aov(as.formula(formula_str), data = df)
 
+  # --- Save Model Summary ---
+  summary_path <- file.path(out_dir, "anova_summary.txt")
+  sink(summary_path)
+  print(summary(aov_model))
+  sink()
+  
   # --- Generate and Save Diagnostic Plots ---
   plot_paths <- list()
   
   # 1. Residuals vs. Fitted
   p1_path <- file.path(out_dir, "residuals_vs_fitted.png")
   png(p1_path, width = 800, height = 600)
-  plot(model, which = 1)
+  plot(aov_model, which = 1)
   dev.off()
   plot_paths$residuals_vs_fitted <- normalizePath(p1_path)
 
   # 2. Normal Q-Q
   p2_path <- file.path(out_dir, "normal_qq.png")
   png(p2_path, width = 800, height = 600)
-  plot(model, which = 2)
+  plot(aov_model, which = 2)
   dev.off()
   plot_paths$normal_qq <- normalizePath(p2_path)
 
-  # 3. Scale-Location
-  p3_path <- file.path(out_dir, "scale_location.png")
-  png(p3_path, width = 800, height = 600)
-  plot(model, which = 3)
-  dev.off()
-  plot_paths$scale_location <- normalizePath(p3_path)
-
-  # 4. Residuals vs. Leverage
-  p4_path <- file.path(out_dir, "residuals_vs_leverage.png")
-  png(p4_path, width = 800, height = 600)
-  plot(model, which = 5)
-  dev.off()
-  plot_paths$residuals_vs_leverage <- normalizePath(p4_path)
-
   # Tidy the model output and return
   list(
-    model_tidy = broom::tidy(model),
+    anova_tidy = broom::tidy(aov_model),
     summary_path = normalizePath(summary_path),
     plot_paths = plot_paths
-  )
-}
-
-
-#' Performs regularized regression (Lasso, Ridge, or Elastic Net) using glmnet.
-#'
-#' @param path Path to the input CSV file.
-#' @param formula_str An R formula string, e.g., "y ~ x1 + x2".
-#' @param model_type The type of regularization: "lasso", "ridge", or "elastic_net".
-#' @param alpha The elasticnet mixing parameter, with 0 <= alpha <= 1.
-#'   alpha=1 is lasso (default), alpha=0 is ridge. Ignored if model_type is "lasso" or "ridge".
-#' @param family The model family, e.g., "gaussian" for linear, "binomial" for logistic.
-#' @param out_path Path to save the cross-validation plot.
-#' @return A list containing the best lambda, non-zero coefficients, and paths to the plot and coefficients CSV.
-tool_regularized_regression <- function(path, formula_str, model_type = "lasso", alpha = 1.0, family = "gaussian", out_path = "cv_plot.png") {
-  df <- readr::read_csv(path, show_col_types = FALSE)
-
-  # Align formula variables with dataframe column names
-  formula_str <- align_formula_vars(formula_str, colnames(df))
-
-  # Prepare data based on formula
-  formula <- as.formula(formula_str)
-  mf <- model.frame(formula, data = df, na.action = na.omit)
-  x <- model.matrix(formula, data = mf)[, -1] # Predictor matrix, remove intercept
-  y <- model.response(mf) # Response variable
-
-  # Set alpha based on model_type
-  current_alpha <- switch(model_type,
-                          "lasso" = 1,
-                          "ridge" = 0,
-                          "elastic_net" = alpha)
-
-  # Perform cross-validation to find the best lambda
-  set.seed(42)
-  cv_fit <- cv.glmnet(x, y, family = family, alpha = current_alpha)
-
-  # Save the cross-validation plot
-  png(out_path, width = 800, height = 600)
-  plot(cv_fit)
-  dev.off()
-
-  # Get coefficients at the best lambda (lambda.min)
-  best_lambda <- cv_fit$lambda.min
-  coefs <- coef(cv_fit, s = best_lambda)
-
-  # Convert to a tidy data frame
-  tidy_coefs <- as.data.frame(as.matrix(coefs))
-  tidy_coefs$term <- rownames(tidy_coefs)
-  names(tidy_coefs)[1] <- "estimate"
-
-  # Filter for non-zero coefficients
-  non_zero_coefs <- tidy_coefs %>%
-    filter(estimate != 0) %>%
-    select(term, estimate) %>%
-    arrange(desc(abs(estimate)))
-    
-  # Save coefficients to a CSV file
-  coef_out_path <- sub("\\.png$", "_coefficients.csv", out_path)
-  readr::write_csv(non_zero_coefs, coef_out_path)
-
-  list(
-    best_lambda = best_lambda,
-    coefficients = non_zero_coefs,
-    plot_path = normalizePath(out_path),
-    coefficients_path = normalizePath(coef_out_path)
   )
 }
