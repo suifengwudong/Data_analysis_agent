@@ -312,13 +312,19 @@ class DataAnalysisAgent:
                                         os.path.basename(function_args["out_path"])
                                     )
                             
-                            result = self.r_client.call_tool(function_name, function_args)
-                            
-                            logger.info(f"Tool result: {str(result)[:200]}...")
+                            result_str = self.r_client.call_tool(function_name, function_args)
+                            logger.info(f"Tool result string: {result_str[:200]}...")
+
+                            try:
+                                # 尝试将结果解析为 JSON
+                                result_data = json.loads(result_str)
+                            except json.JSONDecodeError:
+                                # 如果解析失败，则将其视为普通字符串
+                                result_data = result_str
                             
                             # 如果是 r_clean_data 并且返回了 column_map，则存储它
-                            if function_name == "r_clean_data" and isinstance(result, dict) and "column_map" in result:
-                                new_map = result.get("column_map")
+                            if function_name == "r_clean_data" and isinstance(result_data, dict) and "column_map" in result_data:
+                                new_map = result_data.get("column_map")
                                 if new_map:
                                     logger.info(f"Received new column map: {new_map}")
                                     self.column_map.update(new_map)
@@ -328,7 +334,7 @@ class DataAnalysisAgent:
                             self.messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
-                                "content": json.dumps(result) # 确保结果是JSON字符串
+                                "content": result_str # 将原始JSON字符串传递给LLM
                             })
                 
                 else:

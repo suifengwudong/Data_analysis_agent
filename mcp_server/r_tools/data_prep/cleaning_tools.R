@@ -3,6 +3,7 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(tidyr)
   library(janitor)
+  library(jsonlite)
 })
 
 #' Cleans a dataset by standardizing column names, removing NAs, zeros, and filtering by a numeric range.
@@ -38,10 +39,13 @@ tool_clean_data <- function(path,
     new_names <- names(df)
   }
   
-  # Create a mapping of original names to new names
-  # It will only contain names that have actually changed.
-  column_map <- setNames(new_names, original_names)
-  column_map <- column_map[original_names != new_names]
+  # Create a mapping of original names to new names.
+  # This creates a named list where keys are original names and values are new names.
+  column_map_full <- setNames(as.list(new_names), original_names)
+  
+  # Filter the map to only include names that have actually changed.
+  changed_names_mask <- original_names != new_names
+  column_map <- column_map_full[changed_names_mask]
 
   # If na_cols are provided, they might be using original names.
   # We need to convert them to the new, cleaned names before using them.
@@ -78,10 +82,13 @@ tool_clean_data <- function(path,
   final_rows <- nrow(df)
   rows_removed <- initial_rows - final_rows
 
-  list(
+  result <- list(
     cleaned_data_path = normalizePath(output_path),
     rows_removed = rows_removed,
     final_shape = c(final_rows, ncol(df)),
-    column_map = column_map
+    column_map = if (length(column_map) > 0) column_map else setNames(list(), character(0))
   )
+  
+  # Return result as a JSON string to ensure proper parsing in Python
+  jsonlite::toJSON(result, auto_unbox = TRUE)
 }
