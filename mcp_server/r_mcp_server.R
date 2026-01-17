@@ -54,13 +54,27 @@ r_clean_data <- ellmer::tool(
   )
 )
 
-r_linear_model <- ellmer::tool(
-  tool_linear_model, name = "r_linear_model",
-  description = "Fit linear model with diagnostics PNG.",
+r_glm <- ellmer::tool(
+  tool_glm, name = "r_glm",
+  description = "Fits a Generalized Linear Model (e.g., linear or logistic regression) and provides diagnostic plots.",
   arguments = list(
-    path   = ellmer::type_string("CSV path"),
-    formula_str = ellmer::type_string('R formula, e.g., "mpg ~ hp + wt"'),
-    out_dir     = ellmer::type_string("Output dir", required = FALSE)
+    path = ellmer::type_string("Path to the input CSV file."),
+    formula_str = ellmer::type_string('R formula, e.g., "y ~ x1 + x2".'),
+    family = ellmer::type_string('Model family: "gaussian" (linear), "binomial" (logistic), etc.', required = FALSE),
+    out_dir = ellmer::type_string("Directory to save diagnostic plots.", required = FALSE)
+  )
+)
+
+r_regularized_regression <- ellmer::tool(
+  tool_regularized_regression, name = "r_regularized_regression",
+  description = "Performs regularized regression (Lasso, Ridge, Elastic Net) with cross-validation to find the best model.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    formula_str = ellmer::type_string('R formula, e.g., "y ~ x1 + x2".'),
+    model_type = ellmer::type_string('Type of regularization: "lasso", "ridge", or "elastic_net".', required = FALSE),
+    alpha = ellmer::type_number("Elastic Net mixing parameter (0=ridge, 1=lasso). Used only if model_type is elastic_net.", required = FALSE),
+    family = ellmer::type_string('Model family: "gaussian" (linear) or "binomial" (logistic).', required = FALSE),
+    out_path = ellmer::type_string("Path to save the cross-validation plot.", required = FALSE)
   )
 )
 
@@ -116,7 +130,8 @@ r_normality_test <- ellmer::tool(
 
 mcptools::mcp_server(tools = list(
   r_eda,
-  r_linear_model,
+  r_glm,
+  r_regularized_regression,
   r_visualize,
   r_clustering,
   r_hypothesis_test,

@@ -13,9 +13,9 @@ suppressPackageStartupMessages({
 #' @param transform An optional transformation to apply to the variable before testing (e.g., "log10", "sqrt").
 #' @return A list containing the test method, statistic (W), p-value, skewness, and kurtosis.
 tool_normality_test <- function(path,
-                              var,
-                              filter_expr = NULL,
-                              transform = NULL) {
+                                var,
+                                filter_expr = NULL,
+                                transform = NULL) {
 
   stopifnot(file.exists(path))
   df <- readr::read_csv(path, show_col_types = FALSE)
