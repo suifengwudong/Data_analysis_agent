@@ -18,15 +18,15 @@ suppressPackageStartupMessages({
 #' @param output_path The path to save the output plot PNG file.
 #' @return A list containing the path to the saved plot.
 tool_visualize <- function(path,
-                         plot_type,
-                         x_var,
-                         y_var = NULL,
-                         color_var = NULL,
-                         color_scale = "gradient",
-                         filter_expr = NULL,
-                         x_trans = NULL,
-                         y_trans = NULL,
-                         output_path = "plot.png") {
+                           plot_type,
+                           x_var,
+                           y_var = NULL,
+                           color_var = NULL,
+                           color_scale = "gradient",
+                           filter_expr = NULL,
+                           x_trans = NULL,
+                           y_trans = NULL,
+                           output_path = "plot.png") {
   df <- readr::read_csv(path, show_col_types = FALSE)
 
   # Apply filtering if filter_expr is provided
@@ -84,10 +84,10 @@ tool_visualize <- function(path,
   # Add color aesthetic if color_var is valid
   if (!is.null(color_var) && nzchar(color_var) && color_var %in% names(df)) {
     # For kde, we might want to color the line and fill the area
-    if(plot_type == "kde") {
-        base_aes <- aes(x = .data[[x_var]], color = .data[[color_var]], fill = .data[[color_var]])
+    if (plot_type == "kde") {
+      base_aes <- aes(x = .data[[x_var]], color = .data[[color_var]], fill = .data[[color_var]])
     } else {
-        base_aes[[color_aes_type]] <- rlang::sym(color_var)
+      base_aes[[color_aes_type]] <- rlang::sym(color_var)
     }
   }
 
