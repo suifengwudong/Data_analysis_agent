@@ -55,6 +55,42 @@ r_clean_data <- ellmer::tool(
   )
 )
 
+r_transform_variable <- ellmer::tool(
+  tool_transform_variable, name = "r_transform_variable",
+  description = "Applies a mathematical transformation (e.g., log10, log, sqrt) to specified columns in a dataset.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    output_path = ellmer::type_string("Path to save the transformed CSV file."),
+    vars = ellmer::type_array(ellmer::type_string(), "A list of column names to transform."),
+    method = ellmer::type_string("The transformation method: 'log10', 'log', or 'sqrt'.", required = FALSE),
+    add_constant = ellmer::type_number("A small constant to add before transforming to avoid issues like log(0).", required = FALSE)
+  )
+)
+
+r_moving_average <- ellmer::tool(
+  tool_moving_average, name = "r_moving_average",
+  description = "Calculates a centered moving average (rolling mean) for a time series variable.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    output_path = ellmer::type_string("Path to save the transformed CSV file."),
+    time_col = ellmer::type_string("Column name for time/ordering."),
+    value_col = ellmer::type_string("Column name for values to smooth."),
+    window_size = ellmer::type_integer("Size of the moving window. Default 5.", required = FALSE)
+  )
+)
+
+r_filter_by_frequency <- ellmer::tool(
+  tool_filter_by_frequency, name = "r_filter_by_frequency",
+  description = "Filters data by keeping only groups that appear frequently (e.g. Top N categories).",
+  arguments = list(
+    path = ellmer::type_string("Path to CSV."),
+    output_path = ellmer::type_string("Path to save filtered CSV."),
+    group_col = ellmer::type_string("Categorical column to filter by."),
+    min_count = ellmer::type_integer("Keep groups with at least this many rows.", required = FALSE),
+    top_n = ellmer::type_integer("Keep top N largest groups.", required = FALSE)
+  )
+)
+
 r_glm <- ellmer::tool(
   tool_glm, name = "r_glm",
   description = "Fits a Generalized Linear Model (e.g., linear or logistic regression), saves the model summary to a text file, and provides diagnostic plots.",
@@ -102,8 +138,7 @@ r_ks_test <- ellmer::tool(
   arguments = list(
     path = ellmer::type_string("Path to the input CSV file."),
     var = ellmer::type_string("The name of the variable to test."),
-    filter_expr = ellmer::type_string("Optional R expression to filter data before testing.", required = FALSE),
-    transform = ellmer::type_string("Optional transformation for the variable (e.g., 'log10', 'sqrt').", required = FALSE)
+    filter_expr = ellmer::type_string("Optional R expression to filter data before testing.", required = FALSE)
   )
 )
 
@@ -114,6 +149,18 @@ r_wilcox_test <- ellmer::tool(
     path = ellmer::type_string("Path to the input CSV file."),
     formula_str = ellmer::type_string("An R formula, e.g., 'numeric_var ~ grouping_var'."),
     paired = ellmer::type_boolean("Whether to perform a paired test. Default is FALSE.", required = FALSE)
+  )
+)
+
+r_pairwise_test <- ellmer::tool(
+  tool_pairwise_test, name = "r_pairwise_test",
+  description = "Performs pairwise comparison tests (e.g., Wilcoxon) between groups and visualizes p-values as a heatmap.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    formula_str = ellmer::type_string("An R formula, e.g., 'numeric_var ~ grouping_var'."),
+    test_method = ellmer::type_string("The pairwise test method: 'wilcox.test' or 't.test'.", required = FALSE),
+    p_adjust_method = ellmer::type_string("Method for p-value adjustment (e.g., 'holm', 'bonferroni').", required = FALSE),
+    output_path = ellmer::type_string("Path to save the output heatmap PNG file.", required = FALSE)
   )
 )
 
@@ -128,25 +175,36 @@ r_clustering <- ellmer::tool(
   )
 )
 
-r_hypothesis_test <- ellmer::tool(
-  tool_hypothesis_test, name = "r_hypothesis_test",
-  description = "Performs a hypothesis test (t-test, Mann-Whitney U, or correlation) between two numeric columns.",
+r_t_test <- ellmer::tool(
+  tool_t_test, name = "r_t_test",
+  description = "Performs a Student's t-test or Welch's t-test between two groups.",
   arguments = list(
-    path = ellmer::type_string("CSV path"),
-    test_type = ellmer::type_string("t_test|mann_whitney_u|correlation"),
-    var1      = ellmer::type_string("First variable"),
-    var2      = ellmer::type_string("Second variable")
+    path = ellmer::type_string("Path to the input CSV file."),
+    formula_str = ellmer::type_string("Formula, e.g. 'numeric_col ~ group_col'."),
+    paired = ellmer::type_boolean("Perform paired t-test? Default FALSE.", required = FALSE),
+    var_equal = ellmer::type_boolean("Assume equal variances? TRUE=Student, FALSE=Welch. Default FALSE.", required = FALSE),
+    alternative = ellmer::type_string("Alternative hypothesis: 'two.sided', 'less', 'greater'. Default 'two.sided'.", required = FALSE)
+  )
+)
+
+r_correlation <- ellmer::tool(
+  tool_correlation, name = "r_correlation",
+  description = "Calculates correlation (Pearson, Kendall, Spearman) between two numeric variables.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    var1 = ellmer::type_string("First numeric variable."),
+    var2 = ellmer::type_string("Second numeric variable."),
+    method = ellmer::type_string("Correlation method: 'pearson', 'kendall', 'spearman'. Default 'pearson'.", required = FALSE)
   )
 )
 
 r_normality_test <- ellmer::tool(
   tool_normality_test, name = "r_normality_test",
-  description = "Performs a Shapiro-Wilk normality test on a single variable after optional filtering and transformation.",
+  description = "Performs a Shapiro-Wilk normality test on a single variable.",
   arguments = list(
     path = ellmer::type_string("Path to the input CSV file."),
     var = ellmer::type_string("The name of the variable to test."),
-    filter_expr = ellmer::type_string("Optional: An R expression to filter data before testing.", required = FALSE),
-    transform = ellmer::type_string("Optional: Transformation to apply before testing (e.g., 'log10', 'sqrt').", required = FALSE)
+    filter_expr = ellmer::type_string("Optional: An R expression to filter data before testing.", required = FALSE)
   )
 )
 
@@ -166,9 +224,16 @@ mcptools::mcp_server(tools = list(
   r_regularized_regression,
   r_visualize,
   r_clustering,
-  r_hypothesis_test,
   r_clean_data,
   r_plot_map,
   r_normality_test,
-  r_anova
+  r_anova,
+  r_t_test,
+  r_correlation,
+  r_ks_test,
+  r_wilcox_test,
+  r_pairwise_test,
+  r_transform_variable,
+  r_moving_average,
+  r_filter_by_frequency
 ))

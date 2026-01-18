@@ -92,3 +92,51 @@ tool_clean_data <- function(path,
   # Return result as a JSON string to ensure proper parsing in Python
   jsonlite::toJSON(result, auto_unbox = TRUE)
 }
+
+#' Filters data by retaining only groups with sufficient frequency or top N groups.
+#'
+#' @param path Path to the input CSV file.
+#' @param output_path Path to save the filtered CSV file.
+#' @param group_col The categorical column to group by.
+#' @param min_count Optional: minimum frequency to retain a group.
+#' @param top_n Optional: retain only the top N groups by frequency.
+#' @return A list containing the path to the filtered data and the groups retained.
+tool_filter_by_frequency <- function(path,
+                                     output_path,
+                                     group_col,
+                                     min_count = NULL,
+                                     top_n = NULL) {
+  
+  df <- load_and_filter_data(path)
+  
+  stopifnot(group_col %in% names(df))
+  
+  # Calculate frequencies
+  counts <- df %>%
+    group_by(across(all_of(group_col))) %>%
+    tally(sort = TRUE)
+  
+  kept_groups <- counts
+  
+  if (!is.null(top_n)) {
+    kept_groups <- head(kept_groups, top_n)
+  }
+  
+  if (!is.null(min_count)) {
+    kept_groups <- filter(kept_groups, n >= min_count)
+  }
+  
+  target_groups <- kept_groups[[group_col]]
+  
+  df_filtered <- df %>%
+    filter(.data[[group_col]] %in% target_groups)
+    
+  readr::write_csv(df_filtered, output_path)
+  
+  list(
+    filtered_data_path = normalizePath(output_path),
+    retained_groups = target_groups,
+    retained_rows = nrow(df_filtered)
+  )
+}
+
