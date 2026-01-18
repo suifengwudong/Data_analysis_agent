@@ -96,9 +96,30 @@ r_visualize <- ellmer::tool(
   )
 )
 
+r_ks_test <- ellmer::tool(
+  tool_ks_test, name = "r_ks_test",
+  description = "Performs a Kolmogorov-Smirnov (K-S) test for normality on a single variable.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    var = ellmer::type_string("The name of the variable to test."),
+    filter_expr = ellmer::type_string("Optional R expression to filter data before testing.", required = FALSE),
+    transform = ellmer::type_string("Optional transformation for the variable (e.g., 'log10', 'sqrt').", required = FALSE)
+  )
+)
+
+r_wilcox_test <- ellmer::tool(
+  tool_wilcox_test, name = "r_wilcox_test",
+  description = "Performs a Wilcoxon rank-sum test (or Mann-Whitney U test) as a non-parametric alternative to the t-test.",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    formula_str = ellmer::type_string("An R formula, e.g., 'numeric_var ~ grouping_var'."),
+    paired = ellmer::type_boolean("Whether to perform a paired test. Default is FALSE.", required = FALSE)
+  )
+)
+
 r_clustering <- ellmer::tool(
   tool_clustering, name = "r_clustering",
-  description = "Performs K-means clustering on a mix of numeric and categorical variables. Categorical variables are automatically one-hot encoded. Saves the result with a new 'cluster' column to a new CSV and returns the file path.",
+  description = "Performs K-means clustering on specified numeric variables and returns a CSV with cluster labels.",
   arguments = list(
     path   = ellmer::type_string("CSV path"),
     n_clusters  = ellmer::type_integer("k (default 3)", required = FALSE),
