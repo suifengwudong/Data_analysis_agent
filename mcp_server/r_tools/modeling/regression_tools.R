@@ -135,9 +135,14 @@ tool_glm <- function(path, formula_str, family = "gaussian", out_dir = "glm_diag
   plot_paths$residuals_vs_leverage <- normalizePath(p4_path)
 
   # Tidy the model output and return
+  
+  # Read summary content to returned list
+  summary_content <- paste(readLines(summary_path), collapse = "\n")
+
   list(
     model_tidy = broom::tidy(model),
     summary_path = normalizePath(summary_path),
+    model_summary = summary_content,
     plot_paths = plot_paths
   )
 }

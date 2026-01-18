@@ -55,6 +55,18 @@ r_clean_data <- ellmer::tool(
   )
 )
 
+r_filter_data <- ellmer::tool(
+  tool_filter_data, name = "r_filter_data",
+  description = "Filters data by retaining rows where a column matches a specific value (e.g. category filtering).",
+  arguments = list(
+    path = ellmer::type_string("Path to the input CSV file."),
+    output_path = ellmer::type_string("Path to save the filtered CSV file."),
+    filter_col = ellmer::type_string("The column name to filter by."),
+    filter_value = ellmer::type_string("The value to keep."),
+    keep = ellmer::type_boolean("If TRUE (default), keep rows that match. If FALSE, discard them.", required = FALSE)
+  )
+)
+
 r_transform_variable <- ellmer::tool(
   tool_transform_variable, name = "r_transform_variable",
   description = "Applies a mathematical transformation (e.g., log10, log, sqrt) to specified columns in a dataset.",
@@ -236,5 +248,6 @@ mcptools::mcp_server(tools = list(
   r_pairwise_test,
   r_transform_variable,
   r_moving_average,
-  r_filter_by_frequency
+  r_filter_by_frequency,
+  r_filter_data
 ))

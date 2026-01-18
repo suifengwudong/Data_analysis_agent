@@ -93,6 +93,59 @@ tool_clean_data <- function(path,
   jsonlite::toJSON(result, auto_unbox = TRUE)
 }
 
+#' Filters data by retaining rows where a column matches a specific value.
+#'
+#' @param path Path to the input CSV file.
+#' @param output_path Path to save the filtered CSV file.
+#' @param filter_col The column name to filter by.
+#' @param filter_value The value to keep (string or number).
+#' @param keep Boolean. If TRUE (default), keep rows that match. If FALSE, discard them.
+#' @return A JSON string with details about the operation.
+tool_filter_data <- function(path, output_path, filter_col, filter_value, keep = TRUE) {
+  stopifnot(file.exists(path))
+  df <- readr::read_csv(path, show_col_types = FALSE)
+  initial_rows <- nrow(df)
+  
+  # Handle column name matching (case-insensitive try)
+  col_name <- filter_col
+  if (!col_name %in% names(df)) {
+    # Try cleaned version
+    clean_col <- janitor::make_clean_names(col_name)
+    if (clean_col %in% names(df)) {
+      col_name <- clean_col
+    } else {
+      # Try case-insensitive
+      matches <- names(df)[tolower(names(df)) == tolower(filter_col)]
+      if (length(matches) > 0) col_name <- matches[1]
+    }
+  }
+  
+  if (!col_name %in% names(df)) {
+    stop(paste("Column", filter_col, "not found in dataset."))
+  }
+
+  # Perform filtering
+  if (keep) {
+    df_filtered <- df[df[[col_name]] == filter_value, ]
+  } else {
+    df_filtered <- df[df[[col_name]] != filter_value, ]
+  }
+  
+  readr::write_csv(df_filtered, output_path)
+  
+  final_rows <- nrow(df_filtered)
+  
+  result <- list(
+    filtered_data_path = normalizePath(output_path),
+    original_rows = initial_rows,
+    final_rows = final_rows,
+    filter_col = col_name,
+    filter_value = filter_value
+  )
+  
+  jsonlite::toJSON(result, auto_unbox = TRUE)
+}
+
 #' Filters data by retaining only groups with sufficient frequency or top N groups.
 #'
 #' @param path Path to the input CSV file.
