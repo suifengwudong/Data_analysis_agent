@@ -358,7 +358,7 @@ class DataAnalysisAgent:
                                 "content": result_str # 将原始JSON字符串传递给LLM
                             })
                             
-                            self._log_conversation(f"Tool: {function_name}\nResult: {result_str[:500]}...", "SYSTEM (TOOL RESULT)")
+                            self._log_conversation(f"Tool: {function_name}\nResult: {result_str[:2000]}...", "SYSTEM (TOOL RESULT)")
                 
                 else:
                     # 没有工具调用,任务完成

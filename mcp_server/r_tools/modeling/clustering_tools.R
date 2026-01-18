@@ -67,9 +67,24 @@ tool_clustering <- function(path, n_clusters = 3, variables = NULL, out_path = "
   # Add cluster labels to the original cleaned dataframe (not the one-hot encoded one)
   df_clean$cluster <- km$cluster
 
+  # Create a summary of the clusters (sizes and means of numeric variables)
+  summary_stats <- df_clean %>%
+    dplyr::group_by(cluster) %>%
+    dplyr::summarise(count = n(), dplyr::across(where(is.numeric), mean, .names = "mean_{.col}"))
+  
+  # Format summary as text
+  summary_text <- paste(capture.output(print(summary_stats, width = 100)), collapse = "\n")
+  
+  # Save summary to file
+  summary_path <- gsub("\\.csv$", "_summary.txt", out_path)
+  writeLines(summary_text, summary_path)
+
   # Write the result to the output file
   readr::write_csv(df_clean, out_path)
 
   # Return only the path to the output file for tool chaining
-  list(output_file = normalizePath(out_path))
+  list(
+      output_file = normalizePath(out_path),
+      cluster_summary = summary_text
+  )
 }
