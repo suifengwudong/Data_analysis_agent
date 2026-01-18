@@ -184,7 +184,8 @@ r_clustering <- ellmer::tool(
     path   = ellmer::type_string("CSV path"),
     n_clusters  = ellmer::type_integer("k (default 3)", required = FALSE),
     variables   = ellmer::type_array(ellmer::type_string(), "Optional columns for clustering. If NULL, all numeric columns are used.", required = FALSE),
-    out_path    = ellmer::type_string("Output CSV path", required = FALSE)
+    out_path    = ellmer::type_string("Output CSV path", required = FALSE),
+    feature_weights = ellmer::type_string("Optional JSON string of key-value pairs for weighting features (e.g., '{\"reclat\": 0.5}').", required = FALSE)
   )
 )
 

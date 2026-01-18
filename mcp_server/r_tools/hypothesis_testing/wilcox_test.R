@@ -12,12 +12,12 @@ suppressPackageStartupMessages({
 tool_wilcox_test <- function(path, formula_str, paired = FALSE, alternative = "two.sided") {
   # Load data using utility
   df <- load_and_filter_data(path)
-  
+
   # Align formula variables (robustness)
   formula_str <- align_formula_vars(formula_str, colnames(df))
   formula <- as.formula(formula_str)
-  
-  message(paste("Debug: colnames =", paste(colnames(df), collapse=", ")))
+
+  message(paste("Debug: colnames =", paste(colnames(df), collapse = ", ")))
   message(paste("Debug: formula =", formula_str))
 
   if (paired) {
@@ -26,7 +26,7 @@ tool_wilcox_test <- function(path, formula_str, paired = FALSE, alternative = "t
 
   # Perform Test (Do not pass 'paired' argument to formula method)
   res <- stats::wilcox.test(formula, data = df, alternative = alternative)
-  
+
   list(
     method = res$method,
     statistic = res$statistic[[1]],

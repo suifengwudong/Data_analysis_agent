@@ -59,7 +59,7 @@ align_formula_vars <- function(formula_str, df_colnames) {
   new_formula_str <- formula_str
   # Sort keys by length descending to replace longer matches first (e.g., "var10" before "var1")
   sorted_vars <- names(replacement_map)[order(nchar(names(replacement_map)), decreasing = TRUE)]
-  
+
   for (var in sorted_vars) {
     # Use word boundaries to avoid replacing parts of other words
     pattern <- paste0("\\b", preg_quote(var), "\\b")
@@ -96,7 +96,7 @@ tool_glm <- function(path, formula_str, family = "gaussian", out_dir = "glm_diag
 
   # Fit the model
   model <- glm(as.formula(formula_str), data = df, family = family)
-  
+
   # --- Save Model Summary ---
   summary_path <- file.path(out_dir, "model_summary.txt")
   sink(summary_path)
@@ -105,7 +105,7 @@ tool_glm <- function(path, formula_str, family = "gaussian", out_dir = "glm_diag
 
   # --- Generate and Save Diagnostic Plots ---
   plot_paths <- list()
-  
+
   # 1. Residuals vs. Fitted
   p1_path <- file.path(out_dir, "residuals_vs_fitted.png")
   png(p1_path, width = 800, height = 600)
@@ -135,7 +135,7 @@ tool_glm <- function(path, formula_str, family = "gaussian", out_dir = "glm_diag
   plot_paths$residuals_vs_leverage <- normalizePath(p4_path)
 
   # Tidy the model output and return
-  
+
   # Read summary content to returned list
   summary_content <- paste(readLines(summary_path), collapse = "\n")
 
@@ -199,7 +199,6 @@ tool_regularized_regression <- function(path, formula_str, model_type = "lasso",
     filter(estimate != 0) %>%
     select(term, estimate) %>%
     arrange(desc(abs(estimate)))
-    
   # Save coefficients to a CSV file
   coef_out_path <- sub("\\.png$", "_coefficients.csv", out_path)
   readr::write_csv(non_zero_coefs, coef_out_path)

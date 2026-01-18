@@ -9,7 +9,8 @@
   - [项目简介](#项目简介)
   - [项目实战：陨石数据分析](#项目实战陨石数据分析)
     - [1. 问题定义](#1-问题定义)
-    - [2. 构建 Agent 的思路](#2-构建-agent-的思路)
+    - [3. 数据分类标准 (Scientific Classification)](#3-数据分类标准-scientific-classification)
+    - [4. 构建 Agent 的思路](#4-构建-agent-的思路)
   - [项目架构](#项目架构)
   - [快速开始](#快速开始)
     - [环境准备](#环境准备)
@@ -52,7 +53,21 @@
 -   **长尾分布**: 陨石质量呈现极度右偏特性，需进行对数变换 (`log10`)。
 -   **数据质量**: 包含缺失坐标、异常年份、零质量等噪音。
 
-### 2. 构建 Agent 的思路
+### 3. 数据分类标准 (Scientific Classification)
+
+原始数据中的 `recclass` 字段混合了化学群和岩石学类型，包含 400+ 种详细类别。为了支持高层次的统计分析，我们在清洗阶段 (`r_clean_data`) 引入了自动映射逻辑，生成 `scientific_type` 字段：
+
+| 科学大类 (Scientific Type) | 包含的原始分类 (recclass 关键词) | 占比 (约) |
+| :--- | :--- | :--- |
+| **Chondrite (Ordinary)** | L, H, LL, Ordinary, OC | > 85% |
+| **Chondrite (Carbonaceous)** | CI, CM, CO, CV, CK, CR, CB, CH, Carbonaceous | ~ 4% |
+| **Chondrite (Enstatite)** | EH, EL, Enstatite | < 1% |
+| **Achondrite** | HED (Howardite, Eucrite, Diogenite), Aubrite, Ureilite, Angrite, Lunar, Martian | ~ 5% |
+| **Iron** | Iron, IAB, IIAB, IIIAB, IVA, IVB | ~ 4% |
+| **Stony-Iron** | Pallasite, Mesosiderite, Stony-Iron | < 1% |
+| **Stony (Other/Ungrouped)** | 其他未归类石陨石 | < 1% |
+
+### 4. 构建 Agent 的思路
 
 为了实现严谨且自动化的分析，我们采用了 **"Python 编排 + R 计算"** 的混合架构：
 

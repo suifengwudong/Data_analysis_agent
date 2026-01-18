@@ -14,18 +14,18 @@ suppressPackageStartupMessages({
 tool_t_test <- function(path, formula_str, paired = FALSE, var_equal = FALSE, alternative = "two.sided") {
   # Load data using utility
   df <- load_and_filter_data(path)
-  
+
   # Align formula variables (robustness)
   formula_str <- align_formula_vars(formula_str, colnames(df))
   formula <- as.formula(formula_str)
-  
+
   if (paired) {
     stop("The formula interface for t-test does not support paired samples. Please use independent samples or a different method.")
   }
 
   # Perform Test (Do not pass 'paired' argument)
   res <- stats::t.test(formula, data = df, var.equal = var_equal, alternative = alternative)
-  
+
   list(
     method = res$method,
     statistic = res$statistic[[1]],
