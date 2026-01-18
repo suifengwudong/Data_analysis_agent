@@ -46,7 +46,9 @@ tool_visualize <- function(path,
     df[[x_var]] <- as.factor(df[[x_var]])
   }
 
-  stopifnot(x_var %in% names(df))
+  if (!x_var %in% names(df)) {
+    stop(paste0("x_var '", x_var, "' not found in data. Available: ", paste(names(df), collapse=", ")))
+  }
 
   # Base aesthetic mapping
   base_aes <- aes()
@@ -54,7 +56,9 @@ tool_visualize <- function(path,
 
   p <- switch(plot_type,
     "scatter"   = {
-      stopifnot(!is.null(y_var), y_var %in% names(df))
+      if (is.null(y_var) || !y_var %in% names(df)) {
+         stop(paste0("Scatter plot requires y_var. Provided: '", y_var, "'. Available: ", paste(names(df), collapse=", ")))
+      }
       base_aes <- aes(.data[[x_var]], .data[[y_var]])
       ggplot(df) + geom_point()
     },
@@ -69,7 +73,9 @@ tool_visualize <- function(path,
         base_aes <- aes(y = .data[[x_var]])
         ggplot(df) + geom_boxplot()
       } else { # Grouped boxplot
-        stopifnot(y_var %in% names(df))
+        if (!y_var %in% names(df)) {
+             stop(paste0("Boxplot requires y_var to be present in data. Provided: '", y_var, "'. Available: ", paste(names(df), collapse=", ")))
+        }
         base_aes <- aes(x = .data[[x_var]], y = .data[[y_var]])
         ggplot(df) + geom_boxplot()
       }

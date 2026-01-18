@@ -312,8 +312,16 @@ class DataAnalysisAgent:
                                         os.path.basename(function_args["out_path"])
                                     )
                             
-                            result_str = self.r_client.call_tool(function_name, function_args)
-                            logger.info(f"Tool result string: {result_str[:200]}...")
+                            try:
+                                result_str = self.r_client.call_tool(function_name, function_args)
+                                logger.info(f"Tool result string: {result_str[:200]}...")
+                            except Exception as tool_err:
+                                logger.warning(f"Tool execution failed: {tool_err}")
+                                result_str = json.dumps({
+                                    "status": "error",
+                                    "message": str(tool_err),
+                                    "hint": "Please check your arguments and try again."
+                                })
 
                             try:
                                 # 尝试将结果解析为 JSON

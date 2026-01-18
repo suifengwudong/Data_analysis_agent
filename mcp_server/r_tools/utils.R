@@ -43,6 +43,7 @@ align_formula_vars <- function(formula_str, df_colnames) {
     name <- gsub("'", "", name)
     name <- gsub("%", "percent", name)
     name <- gsub("[^a-z0-9_]+", "_", name)
+    name <- gsub("_+", "_", name)
     name <- gsub("^_|_$", "", name)
     name
   }
