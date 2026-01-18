@@ -11,8 +11,11 @@ suppressPackageStartupMessages({
 #' @param n_clusters The number of clusters (k) to form. Defaults to 3.
 #' @param variables Optional vector of column names to use for clustering. If NULL, all numeric columns (excluding 'id') are used.
 #' @param out_path Path to save the output CSV file with an added 'cluster' column.
+#' @param feature_weights Optional named list of weights for variables.
+#'        E.g., list(reclat = 0.5, recclass = 2).
+#'        Weights are applied after scaling. For categorical variables, the weight is applied to all corresponding one-hot columns.
 #' @return A list containing the path to the output CSV file.
-tool_clustering <- function(path, n_clusters = 3, variables = NULL, out_path = "kmeans_with_labels.csv") {
+tool_clustering <- function(path, n_clusters = 3, variables = NULL, out_path = "kmeans_with_labels.csv", feature_weights = NULL) {
   df <- readr::read_csv(path, show_col_types = FALSE)
 
   # Determine clustering variables
@@ -60,6 +63,37 @@ tool_clustering <- function(path, n_clusters = 3, variables = NULL, out_path = "
   # Scale the final prepared data (all numeric now)
   X_scaled <- scale(data_for_clustering)
 
+  # Apply feature weights if provided
+  if (!is.null(feature_weights)) {
+    # If feature_weights is a JSON string (passed from LLM as string), parse it
+    if (is.character(feature_weights) && length(feature_weights) == 1) {
+       tryCatch({
+         feature_weights <- jsonlite::fromJSON(feature_weights)
+       }, error = function(e) {
+         stop("Failed to parse feature_weights JSON string: ", e$message)
+       })
+    }
+  
+    if (length(feature_weights) > 0) {
+      col_names <- colnames(X_scaled)
+      for (var_name in names(feature_weights)) {
+        weight <- feature_weights[[var_name]]
+        # Case 1: Exact match (numeric variable)
+        if (var_name %in% col_names) {
+          X_scaled[, var_name] <- X_scaled[, var_name] * weight
+        } else {
+          # Case 2: Categorical variable prefix match
+          # Find columns that look like "var_nameValue" (created by model.matrix)
+          # Using exact start matching
+          matches <- grep(paste0("^", var_name), col_names)
+          if (length(matches) > 0) {
+            X_scaled[, matches] <- X_scaled[, matches] * weight
+          }
+        }
+      }
+    }
+  }
+
   # Perform k-means
   set.seed(42)
   km <- stats::kmeans(X_scaled, centers = n_clusters, nstart = 20)
@@ -71,10 +105,10 @@ tool_clustering <- function(path, n_clusters = 3, variables = NULL, out_path = "
   summary_stats <- df_clean %>%
     dplyr::group_by(cluster) %>%
     dplyr::summarise(count = n(), dplyr::across(where(is.numeric), mean, .names = "mean_{.col}"))
-  
+
   # Format summary as text
   summary_text <- paste(capture.output(print(summary_stats, width = 100)), collapse = "\n")
-  
+
   # Save summary to file
   summary_path <- gsub("\\.csv$", "_summary.txt", out_path)
   writeLines(summary_text, summary_path)

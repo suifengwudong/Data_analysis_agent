@@ -6,6 +6,46 @@ suppressPackageStartupMessages({
   library(jsonlite)
 })
 
+# Helper function to map detailed classes to scientific types
+get_scientific_type <- function(recclass) {
+  if (is.na(recclass)) return("Unknown")
+  cls <- toupper(recclass)
+
+  # 优先匹配铁陨石和石铁陨石
+  if (grepl("IRON", cls) || grepl("I[A-D]B", cls) || grepl("II[A-E]", cls) || grepl("III[A-D]B", cls)) {
+    if (!grepl("STONY", cls) && !grepl("PALLASITE", cls) && !grepl("MESOSIDERITE", cls)) {
+      return("Iron")  # 铁陨石
+    }
+  }
+
+  if (grepl("PALLASITE", cls) || grepl("MESOSIDERITE", cls) || grepl("STONY-IRON", cls)) {
+    return("Stony-Iron") # 石铁陨石
+  }
+
+  # 匹配球粒陨石 (L, H, LL, C, E, R, K 开头)
+  # 普通球粒: H, L, LL
+  if (grepl("^(H|L|LL)", cls) || grepl("ORDINARY", cls) || grepl("OC", cls)) {
+    return("Chondrite (Ordinary)")
+  }
+  # 碳质球粒: C 开头
+  if (grepl("^C(I|M|O|V|K|R|B|H)", cls) || grepl("CARBONACEOUS", cls)) {
+    return("Chondrite (Carbonaceous)")
+  }
+  # 顽火辉石球粒: E 开头
+  if (grepl("^E(H|L)", cls) || grepl("ENSTATITE", cls)) {
+    return("Chondrite (Enstatite)")
+  }
+
+  # 匹配常见的无球粒陨石
+  achondrites <- c("AUBRITE", "UREILITE", "HOWARDITE", "EUCRITE", "DIOGENITE", "ANGRITE", "LUNAR", "MARTIAN", "ACAPULCOITE", "LODRANITE", "WINONAITE", "BRACHINITE", "ACHONDRITE")
+  if (any(sapply(achondrites, function(x) grepl(x, cls)))) {
+    return("Achondrite") # 无球粒陨石
+  }
+
+  # 剩余的归为其他球粒或未知石陨石
+  return("Stony (Other/Ungrouped)")
+}
+
 #' Cleans a dataset by standardizing column names, removing NAs, zeros, and filtering by a numeric range.
 #'
 #' @param path Path to the input CSV file.
@@ -38,24 +78,29 @@ tool_clean_data <- function(path,
     df <- janitor::clean_names(df)
     new_names <- names(df)
   }
-  
+
   # Create a mapping of original names to new names.
   # This creates a named list where keys are original names and values are new names.
   column_map_full <- setNames(as.list(new_names), original_names)
-  
+
   # Filter the map to only include names that have actually changed.
   changed_names_mask <- original_names != new_names
   column_map <- column_map_full[changed_names_mask]
 
+  # [Custom] Add Scientific Classification if recclass exists
+  if ("recclass" %in% names(df)) {
+    df$scientific_type <- sapply(df$recclass, get_scientific_type)
+  }
+
   # If na_cols are provided, they might be using original names.
   # We need to convert them to the new, cleaned names before using them.
   if (!is.null(na_cols) && length(na_cols) > 0) {
-      # Clean the provided na_cols to match the new column names in the dataframe
-      cleaned_na_cols <- janitor::make_clean_names(na_cols)
-      valid_na_cols <- cleaned_na_cols[cleaned_na_cols %in% names(df)]
-      if (length(valid_na_cols) > 0) {
-          df <- tidyr::drop_na(df, all_of(valid_na_cols))
-      }
+    # Clean the provided na_cols to match the new column names in the dataframe
+    cleaned_na_cols <- janitor::make_clean_names(na_cols)
+    valid_na_cols <- cleaned_na_cols[cleaned_na_cols %in% names(df)]
+    if (length(valid_na_cols) > 0) {
+      df <- tidyr::drop_na(df, all_of(valid_na_cols))
+    }
   }
 
   # Same for zero_cols
@@ -88,7 +133,7 @@ tool_clean_data <- function(path,
     final_shape = c(final_rows, ncol(df)),
     column_map = if (length(column_map) > 0) column_map else setNames(list(), character(0))
   )
-  
+
   # Return result as a JSON string to ensure proper parsing in Python
   jsonlite::toJSON(result, auto_unbox = TRUE)
 }
@@ -105,7 +150,7 @@ tool_filter_data <- function(path, output_path, filter_col, filter_value, keep =
   stopifnot(file.exists(path))
   df <- readr::read_csv(path, show_col_types = FALSE)
   initial_rows <- nrow(df)
-  
+
   # Handle column name matching (case-insensitive try)
   col_name <- filter_col
   if (!col_name %in% names(df)) {
@@ -119,7 +164,7 @@ tool_filter_data <- function(path, output_path, filter_col, filter_value, keep =
       if (length(matches) > 0) col_name <- matches[1]
     }
   }
-  
+
   if (!col_name %in% names(df)) {
     stop(paste("Column", filter_col, "not found in dataset."))
   }
@@ -130,11 +175,11 @@ tool_filter_data <- function(path, output_path, filter_col, filter_value, keep =
   } else {
     df_filtered <- df[df[[col_name]] != filter_value, ]
   }
-  
+
   readr::write_csv(df_filtered, output_path)
-  
+
   final_rows <- nrow(df_filtered)
-  
+
   result <- list(
     filtered_data_path = normalizePath(output_path),
     original_rows = initial_rows,
@@ -142,7 +187,7 @@ tool_filter_data <- function(path, output_path, filter_col, filter_value, keep =
     filter_col = col_name,
     filter_value = filter_value
   )
-  
+
   jsonlite::toJSON(result, auto_unbox = TRUE)
 }
 
@@ -159,37 +204,36 @@ tool_filter_by_frequency <- function(path,
                                      group_col,
                                      min_count = NULL,
                                      top_n = NULL) {
-  
+
   df <- load_and_filter_data(path)
-  
+
   stopifnot(group_col %in% names(df))
-  
+
   # Calculate frequencies
   counts <- df %>%
     group_by(across(all_of(group_col))) %>%
     tally(sort = TRUE)
-  
+
   kept_groups <- counts
-  
+
   if (!is.null(top_n)) {
     kept_groups <- head(kept_groups, top_n)
   }
-  
+
   if (!is.null(min_count)) {
     kept_groups <- filter(kept_groups, n >= min_count)
   }
-  
+
   target_groups <- kept_groups[[group_col]]
-  
+
   df_filtered <- df %>%
     filter(.data[[group_col]] %in% target_groups)
-    
+
   readr::write_csv(df_filtered, output_path)
-  
+
   list(
     filtered_data_path = normalizePath(output_path),
     retained_groups = target_groups,
     retained_rows = nrow(df_filtered)
   )
 }
-

@@ -55,17 +55,21 @@
 
 ### 模块 4: 聚类分析 (Clustering Geography & Mass)
 *   **目标**: 分别探索“目击坠落(Fell)”和“被动发现(Found)”类陨石在地理空间和物理属性上的自然分组，以消除不同发现模式带来的混淆。
-*   **特征选择**: `reclat` (纬度), `reclong` (经度), 和 `log10_mass` (对数质量)。
+*   **特征选择**: `reclat` (纬度), `reclong` (经度), `log10_mass` (对数质量), 和 `recclass` (陨石类别)。
 *   **动作**:
-    1.  **Fell 类聚类**:
+    1.  **准备工作**:
+        *   使用 `r_filter_by_frequency` 筛选出样本量 Top 10 的常见陨石类别（以减少稀有类别对聚类的干扰）。
+    2.  **Fell 类聚类**:
         *   仅筛选 `fall == "Fell"` 的数据。
         *   使用 `r_clustering` 进行 K-Means 聚类 (N=3)。
+        *   **参数**: `feature_weights` 设定为 JSON 字符串 `'{"reclat": 0.5, "reclong": 0.5, "log10_mass": 1.0, "recclass": 1.0}'`，以降低地理位置对聚类的影响，更关注物理属性和类别。
         *   使用 `r_plot_map` 可视化聚类结果。
-    2.  **Found 类聚类**:
+    3.  **Found 类聚类**:
         *   仅筛选 `fall == "Found"` 的数据。
         *   使用 `r_clustering` 进行 K-Means 聚类 (N=3)。
+        *   **参数**: 同样的权重设置（JSON 字符串）。
         *   使用 `r_plot_map` 可视化聚类结果。
-    3.  **对比分析**:
+    4.  **对比分析**:
         *   对比两组聚类结果的地理分布特征（例如：Found类是否主要由南极群主导，而Fell类是否更均匀分布）。
 
 ### 模块 5: 驱动因素分析 (Regression Modeling)
