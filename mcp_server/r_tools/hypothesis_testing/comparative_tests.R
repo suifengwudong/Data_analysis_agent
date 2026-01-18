@@ -30,3 +30,28 @@ tool_hypothesis_test <- function(path, test_type, var1, var2) {
   )
   return(res)
 }
+
+#' Performs a Wilcoxon rank-sum test (Mann-Whitney U test).
+#'
+#' This test is a non-parametric alternative to the two-sample t-test.
+#' It can be used to determine whether two independent samples were selected
+#' from populations having the same distribution.
+#'
+#' @param path Path to the input CSV file.
+#' @param formula_str An R formula string, e.g., "numeric_var ~ grouping_var".
+#' @param paired A logical indicating whether you want a paired test. Default is FALSE.
+#' @return A list containing the test method, statistic (W), and p-value.
+tool_wilcox_test <- function(path, formula_str, paired = FALSE) {
+  df <- readr::read_csv(path, show_col_types = FALSE)
+  
+  formula <- as.formula(formula_str)
+  
+  # Perform the Wilcoxon test
+  res <- stats::wilcox.test(formula, data = df, paired = paired)
+  
+  list(
+    method = res$method,
+    statistic = res$statistic,
+    p_value = res$p.value
+  )
+}
