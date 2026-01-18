@@ -17,6 +17,9 @@ tool_wilcox_test <- function(path, formula_str, paired = FALSE, alternative = "t
   formula_str <- align_formula_vars(formula_str, colnames(df))
   formula <- as.formula(formula_str)
   
+  message(paste("Debug: colnames =", paste(colnames(df), collapse=", ")))
+  message(paste("Debug: formula =", formula_str))
+
   if (paired) {
     stop("The formula interface for Wilcoxon test does not support paired samples. Please use independent samples or a different method.")
   }

@@ -30,6 +30,14 @@ tool_normality_test <- function(path,
     stop("Not enough data points to perform the normality test after cleaning.")
   }
 
+  note <- NULL
+  # Shapiro-Wilk test is limited to 5000 samples. Sample down if necessary.
+  if (length(x) > 5000) {
+    set.seed(42) # Ensure reproducibility
+    x <- sample(x, 5000)
+    note <- "Sample size exceeded 5000. Randomly sampled 5000 data points for Shapiro-Wilk test."
+  }
+
   # Perform the Shapiro-Wilk test
   res <- stats::shapiro.test(x)
 
@@ -39,10 +47,11 @@ tool_normality_test <- function(path,
 
   list(
     method = res$method,
-    statistic = res$statistic,
+    statistic = res$statistic[[1]],
     p_value = res$p.value,
     skewness = skew,
-    kurtosis = kurt
+    kurtosis = kurt,
+    note = note
   )
 }
 

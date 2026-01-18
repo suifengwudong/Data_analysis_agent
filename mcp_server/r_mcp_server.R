@@ -148,7 +148,8 @@ r_wilcox_test <- ellmer::tool(
   arguments = list(
     path = ellmer::type_string("Path to the input CSV file."),
     formula_str = ellmer::type_string("An R formula, e.g., 'numeric_var ~ grouping_var'."),
-    paired = ellmer::type_boolean("Whether to perform a paired test. Default is FALSE.", required = FALSE)
+    paired = ellmer::type_boolean("Whether to perform a paired test. Default is FALSE.", required = FALSE),
+    alternative = ellmer::type_string("Alternative hypothesis: 'two.sided', 'less', 'greater'. Default 'two.sided'.", required = FALSE)
   )
 )
 

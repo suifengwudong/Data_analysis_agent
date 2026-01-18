@@ -29,12 +29,26 @@ tool_pairwise_test <- function(path,
   grouping_var <- all.vars(formula)[2]
 
   # Perform pairwise test
-  pairwise_result <- stats::pairwise.test(
-    x = df[[response_var]],
-    g = df[[grouping_var]],
-    p.adjust.method = p_adjust_method,
-    test.func = match.fun(test_method)
-  )
+  # The standard R functions are pairwise.t.test and pairwise.wilcox.test
+  # We need to dispatch based on test_method
+  
+  if (test_method == "wilcox.test") {
+      pairwise_result <- stats::pairwise.wilcox.test(
+        x = df[[response_var]],
+        g = df[[grouping_var]],
+        p.adjust.method = p_adjust_method,
+        paired = FALSE
+      )
+  } else if (test_method == "t.test") {
+      pairwise_result <- stats::pairwise.t.test(
+        x = df[[response_var]],
+        g = df[[grouping_var]],
+        p.adjust.method = p_adjust_method,
+        paired = FALSE
+      )
+  } else {
+      stop("Unsupported test_method. Use 'wilcox.test' or 't.test'.")
+  }
   
   # Tidy the p-value matrix for plotting
   p_matrix <- as.data.frame(pairwise_result$p.value)
