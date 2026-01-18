@@ -149,24 +149,26 @@ class DataAnalysisAgent:
     
     def _update_formula_with_column_map(self, formula: str) -> str:
         """使用列名映射更新公式字符串"""
-        if not self.column_map:
-            return formula
-        
-        logger.info(f"Updating formula '{formula}' with column map: {self.column_map}")
-        
-        # 为了避免错误替换（例如，用 'var_1' 替换 'var_10' 中的 'var_1'），
-        # 我们按键的长度降序排序
-        sorted_map = sorted(self.column_map.items(), key=lambda item: len(item[0]), reverse=True)
-        
-        for old_name, new_name in sorted_map:
-            # 使用正则表达式确保只替换完整的单词
-            # 这可以防止 'year' 被 'new_year' 中的 'year' 替换
-            # `\b` 是一个词边界
-            pattern = r'\b' + re.escape(old_name) + r'\b'
-            formula = re.sub(pattern, new_name, formula)
-            
-        logger.info(f"Updated formula: '{formula}'")
+        # 禁用此自动替换逻辑，因为 R 端的 utils.R 已经具备强大的模糊匹配和清洗能力。
+        # Python 端的盲目字符串替换经常导致部分匹配问题（例如将 'mass (g)_log10' 错误替换为 'mass_g_log10'），
+        # 从而破坏了 R 端对真实列名的解析。
+        # 让 LLM 自己决定变量名，或者由 R 端处理不一致。
         return formula
+        
+        # Original logic commented out below for reference:
+        # if not self.column_map:
+        #     return formula
+        # ...
+
+
+    def _log_conversation(self, content: str, role: str):
+        """将对话内容追加写入到工作目录下的 conversation.log 文件"""
+        log_path = os.path.join(self.working_directory, "conversation.log")
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"[{role.upper()}]:\n{content}\n\n{'-'*40}\n\n")
+        except Exception as e:
+            logger.error(f"Failed to write to conversation log: {e}")
 
     def analyze(self, user_request: str) -> str:
         """
@@ -194,6 +196,8 @@ class DataAnalysisAgent:
             })
             
             logger.info(f"Added user response as tool result for call_id: {tool_call_id}")
+            self._log_conversation(user_request, "USER (TOOL RESPONSE)")
+
         else:
             # 初始化对话历史（如果是新会话）
             if not self.messages:
@@ -203,6 +207,7 @@ class DataAnalysisAgent:
             
             # 添加用户消息
             self.messages.append({"role": "user", "content": user_request})
+            self._log_conversation(user_request, "USER")
         
         # 智能体循环
         for iteration in range(self.max_iterations):
@@ -220,6 +225,10 @@ class DataAnalysisAgent:
                 
                 assistant_message = response.choices[0].message
                 
+                # 记录助手回复内容
+                if assistant_message.content:
+                    self._log_conversation(assistant_message.content, "ASSISTANT")
+
                 # 检查是否需要调用工具
                 if assistant_message.tool_calls:
                     # 添加助手消息
@@ -238,6 +247,10 @@ class DataAnalysisAgent:
                             for tc in assistant_message.tool_calls
                         ]
                     })
+
+                    # Log tool calls
+                    tool_calls_log = "\n".join([f"Call {tc.function.name}({tc.function.arguments})" for tc in assistant_message.tool_calls])
+                    self._log_conversation(tool_calls_log, "ASSISTANT (TOOL CALL)")
                     
                     # 执行所有工具调用
                     for tool_call in assistant_message.tool_calls:
@@ -344,11 +357,14 @@ class DataAnalysisAgent:
                                 "tool_call_id": tool_call.id,
                                 "content": result_str # 将原始JSON字符串传递给LLM
                             })
+                            
+                            self._log_conversation(f"Tool: {function_name}\nResult: {result_str[:500]}...", "SYSTEM (TOOL RESULT)")
                 
                 else:
                     # 没有工具调用,任务完成
                     final_response = assistant_message.content or "分析完成"
                     logger.info("Analysis completed successfully")
+                    self._log_conversation(final_response, "ASSISTANT (FINAL)")
                     return final_response
                     
             except Exception as e:
@@ -357,8 +373,11 @@ class DataAnalysisAgent:
                     raise
                 
                 logger.error(f"Error in iteration {iteration + 1}: {e}", exc_info=True)
-                return f"分析过程中出现错误:\n\n```\n{str(e)}\n```"
+                error_msg = f"分析过程中出现错误:\n\n```\n{str(e)}\n```"
+                self._log_conversation(error_msg, "SYSTEM (ERROR)")
+                return error_msg
         
+        self._log_conversation("Max iterations reached without final answer.", "SYSTEM")
         return "分析未完成（达到最大迭代次数）。请尝试简化需求或分步骤提问。"
     
     def reset(self):

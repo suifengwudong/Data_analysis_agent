@@ -42,7 +42,12 @@ tool_transform_variable <- function(path,
     }
     
     # Create a new column name for the transformed variable
-    new_var_name <- paste0(var, "_", method)
+    # Use clean_name from utils functionality logic (inline here to avoid scoping issues if utils not loaded globally correctly)
+    clean_base_var <- tolower(gsub("[^a-zA-Z0-9_]+", "_", var))
+    clean_base_var <- gsub("_+", "_", clean_base_var)
+    clean_base_var <- gsub("^_|_$", "", clean_base_var)
+    
+    new_var_name <- paste0(clean_base_var, "_", method)
     
     # Apply transformation
     df <- df %>%
