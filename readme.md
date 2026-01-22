@@ -10,7 +10,9 @@
   - [项目实战：陨石数据分析](#项目实战陨石数据分析)
     - [1. 问题定义](#1-问题定义)
     - [3. 数据分类标准 (Scientific Classification)](#3-数据分类标准-scientific-classification)
-    - [4. 构建 Agent 的思路](#4-构建-agent-的思路)
+    - [4. 智能体构建与驱动机制](#4-智能体构建与驱动机制)
+      - [4.1 智能体构建方法论 (Construction Methodology)](#41-智能体构建方法论-construction-methodology)
+      - [4.2 智能体驱动策略 (Utilization via `test/prompt.md`)](#42-智能体驱动策略-utilization-via-testpromptmd)
   - [项目架构](#项目架构)
   - [快速开始](#快速开始)
     - [环境准备](#环境准备)
@@ -67,24 +69,40 @@
 | **Stony-Iron** | Pallasite, Mesosiderite, Stony-Iron | < 1% |
 | **Stony (Other/Ungrouped)** | 其他未归类石陨石 | < 1% |
 
-### 4. 构建 Agent 的思路
+### 4. 智能体构建与驱动机制
 
-为了实现严谨且自动化的分析，我们采用了 **"Python 编排 + R 计算"** 的混合架构：
+本项目展示了如何“构建”一个能够执行复杂科学任务的 AI Agent，并阐述了如何通过 System Prompt 来“驱动”它。
 
--   **大脑层 (Python/LLM)**
-    -   使用 GPT-4o 作为推理引擎。
-    -   **结构化思维链**: 通过预设的 Prompt 模板，强制 Agent 遵循 `数据清洗 -> EDA -> 假设检验 -> 建模` 的标准统计流程。
-    -   **自适应纠错**: 赋予 Agent 读取元数据 (`r_eda`) 的能力，当遇到“列名不匹配”等 R 错误时，Agent 能自主修正公式。
+#### 4.1 智能体构建方法论 (Construction Methodology)
 
--   **执行层 (R MCP Server)**
-    -   封装专业的 R 包 (`dplyr`, `ggplot2`, `stats`) 为标准化原子工具。
-    -   **工具链设计**:
-        -   **数据清洗**: `r_clean_data`, `r_transform_variable`
-        -   **可视化**: `r_plot_map` (地图), `r_visualize` (KDE/箱线图)
-        -   **统计检验**: `r_wilcox_test`, `r_ks_test`, `r_pairwise_test`
-        -   **建模**: `r_clustering` (K-Means), `r_glm` (回归)
+为了实现严谨且自动化的分析，我们采用了 **"Python 编排 + R 计算"** 的双层架构：
 
-通过这种设计，智能体不仅能生成代码，还能像人类分析师一样，用 P 值和图表来支撑每一个业务结论。
+*   **大脑层 (Python/LLM)**
+    *   **核心逻辑**: `agent/data_analysis_agent.py` 封装了 OpenAI API 调用。它不仅仅是简单的问答，而是一个能够维护会话状态、解析工具调用请求、并处理 R 脚本执行结果的闭环系统。
+    *   **自适应纠错**: 赋予 Agent 读取工具定义的能力。当遇到 R 运行时错误（如“列名不存在”），Agent 能够读取元数据 (`r_eda`)，理解错误原因，并自主修正参数再次尝试。
+    *   **上下文管理**: Agent 会维护 chat history，确保在 Module 5 进行回归分析时，依然“记得” Module 1 中清洗过的数据路径。
+
+*   **执行层 (R MCP Server)**
+    *   **原子化工具**: 我们将 `dplyr`, `ggplot2`, `stats` 等 R 包的核心功能封装为无状态的原子函数（如 `r_clean_data`, `r_clustering`）。
+    *   **JSON 通信**: R 函数接收 JSON 格式化参数，返回 JSON 结果或文件路径，确保跨语言交互的稳定性。
+
+#### 4.2 智能体驱动策略 (Utilization via `test/prompt.md`)
+
+`test/prompt.md` 不仅仅是一个提示词，它是智能体的 **标准作业程序 (SOP)**。我们通过以下策略利用智能体实现既定目标：
+
+1.  **角色沉浸 (Role Definition)**:
+    *   定义 Agent 为 **"陨石数据高级分析师"**，并确立 **"数据说话"** 和 **"稳健统计"** 两大核心哲学，明确要求“所有结论必须由 P 值和图表支撑”，从而避免 AI 产生幻觉或空泛的结论。
+
+2.  **强制性思维链 (Structured Chain of Thought)**:
+    *   我们将复杂的分析任务拆解为 **6 个模块 (Modules 0-5)**，强制 Agent 按顺序执行。
+    *   **Module 0 (Data Prep)**: 预置严格的清洗规则（如 Log10 变换），解决数据右偏问题。
+    *   **Module 1-3 (EDA & Test)**: 引导 Agent 从“发现模式”、“时间趋势”、“种类质量”三个维度进行可视化探索和假设检验。
+    *   **Module 4-5 (Advanced Modeling)**: 指导 Agent 进行带权重的 K-Means 聚类和含交互项的 GLM 回归，挖掘深层规律。
+
+3.  **结果导向 (Output Requirements)**:
+    *   Prompts 中明确指定了每个模块所需的 **可视化动作** (如 `boxplot`, `kde`, `map`) 和 **统计验证方法** (如 `Wilcoxon`, `KS-Test`)，确保产出符合学术标准。
+
+通过这种 **"强逻辑 Prompt + 强能力 Tool"** 的组合，我们成功让通用大模型表现出了领域专家的分析能力。
 
 ## 项目架构
 
