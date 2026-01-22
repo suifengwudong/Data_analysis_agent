@@ -1,0 +1,32 @@
+[
+  {
+    "scientific_type": "Iron",
+    "patterns": ["IRON", "I[A-D]B", "II[A-E]", "III[A-D]B", "IVA", "IVB"],
+    "excludes": ["STONY", "PALLASITE", "MESOSIDERITE"]
+  },
+  {
+    "scientific_type": "Stony-Iron",
+    "patterns": ["PALLASITE", "MESOSIDERITE", "STONY-IRON"],
+    "excludes": []
+  },
+  {
+    "scientific_type": "Chondrite (Ordinary)",
+    "patterns": ["^(H|L|LL)", "ORDINARY", "OC"],
+    "excludes": []
+  },
+  {
+    "scientific_type": "Chondrite (Carbonaceous)",
+    "patterns": ["^C(I|M|O|V|K|R|B|H)", "CARBONACEOUS"],
+    "excludes": []
+  },
+  {
+    "scientific_type": "Chondrite (Enstatite)",
+    "patterns": ["^E(H|L)", "ENSTATITE"],
+    "excludes": []
+  },
+  {
+    "scientific_type": "Achondrite",
+    "patterns": ["AUBRITE", "UREILITE", "HOWARDITE", "EUCRITE", "DIOGENITE", "ANGRITE", "LUNAR", "MARTIAN", "ACAPULCOITE", "LODRANITE", "WINONAITE", "BRACHINITE", "ACHONDRITE"],
+    "excludes": []
+  }
+]

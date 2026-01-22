@@ -6,44 +6,59 @@ suppressPackageStartupMessages({
   library(jsonlite)
 })
 
-# Helper function to map detailed classes to scientific types
-get_scientific_type <- function(recclass) {
-  if (is.na(recclass)) return("Unknown")
-  cls <- toupper(recclass)
-
-  # 优先匹配铁陨石和石铁陨石
-  if (grepl("IRON", cls) || grepl("I[A-D]B", cls) || grepl("II[A-E]", cls) || grepl("III[A-D]B", cls)) {
-    if (!grepl("STONY", cls) && !grepl("PALLASITE", cls) && !grepl("MESOSIDERITE", cls)) {
-      return("Iron")  # 铁陨石
+# Helper function to apply scientific classification based on external JSON config
+apply_scientific_classification <- function(df, config_path = "mcp_server/class_mapping.json") {
+  if (!file.exists(config_path)) {
+    # Fallback checking inside 'mcp_server' if running from root, or relative
+    if (file.exists(file.path("mcp_server", "class_mapping.json"))) {
+       config_path <- file.path("mcp_server", "class_mapping.json")
+    } else {
+       warning(paste("Classification config file not found at:", config_path))
+       return(df)
     }
   }
 
-  if (grepl("PALLASITE", cls) || grepl("MESOSIDERITE", cls) || grepl("STONY-IRON", cls)) {
-    return("Stony-Iron") # 石铁陨石
-  }
-
-  # 匹配球粒陨石 (L, H, LL, C, E, R, K 开头)
-  # 普通球粒: H, L, LL
-  if (grepl("^(H|L|LL)", cls) || grepl("ORDINARY", cls) || grepl("OC", cls)) {
-    return("Chondrite (Ordinary)")
-  }
-  # 碳质球粒: C 开头
-  if (grepl("^C(I|M|O|V|K|R|B|H)", cls) || grepl("CARBONACEOUS", cls)) {
-    return("Chondrite (Carbonaceous)")
-  }
-  # 顽火辉石球粒: E 开头
-  if (grepl("^E(H|L)", cls) || grepl("ENSTATITE", cls)) {
-    return("Chondrite (Enstatite)")
-  }
-
-  # 匹配常见的无球粒陨石
-  achondrites <- c("AUBRITE", "UREILITE", "HOWARDITE", "EUCRITE", "DIOGENITE", "ANGRITE", "LUNAR", "MARTIAN", "ACAPULCOITE", "LODRANITE", "WINONAITE", "BRACHINITE", "ACHONDRITE")
-  if (any(sapply(achondrites, function(x) grepl(x, cls)))) {
-    return("Achondrite") # 无球粒陨石
-  }
-
-  # 剩余的归为其他球粒或未知石陨石
-  return("Stony (Other/Ungrouped)")
+  tryCatch({
+    rules <- jsonlite::fromJSON(config_path)
+    
+    # Process 'recclass' column
+    cls_upper <- toupper(df$recclass)
+    
+    # Initialize result vector with NA 
+    final_types <- rep(NA_character_, nrow(df))
+    
+    for (i in seq_len(nrow(rules))) {
+      patterns <- rules$patterns[[i]]
+      excludes <- rules$excludes[[i]]
+      target_type <- rules$scientific_type[i]
+      
+      # Identify candidates (matching patterns)
+      # Using vectorized grepl for each pattern
+      is_match <- Reduce(`|`, lapply(patterns, function(p) grepl(p, cls_upper)))
+      
+      if (length(excludes) > 0) {
+        is_exclude <- Reduce(`|`, lapply(excludes, function(e) grepl(e, cls_upper)))
+        is_match <- is_match & !is_exclude
+      }
+      
+      # Only assign if currently NA (First Match Wins Strategy)
+      update_mask <- is_match & is.na(final_types)
+      final_types[update_mask] <- target_type
+    }
+    
+    # Fill remaining NAs with default
+    final_types[is.na(final_types)] <- "Stony (Other/Ungrouped)"
+    
+    # Handle NA inputs in original data
+    final_types[is.na(df$recclass)] <- "Unknown"
+    
+    df$scientific_type <- final_types
+    return(df)
+    
+  }, error = function(e) {
+    warning(paste("Error applying classification:", e$message))
+    return(df)
+  })
 }
 
 #' Cleans a dataset by standardizing column names, removing NAs, zeros, and filtering by a numeric range.
@@ -89,7 +104,7 @@ tool_clean_data <- function(path,
 
   # [Custom] Add Scientific Classification if recclass exists
   if ("recclass" %in% names(df)) {
-    df$scientific_type <- sapply(df$recclass, get_scientific_type)
+    df <- apply_scientific_classification(df)
   }
 
   # If na_cols are provided, they might be using original names.
